@@ -2,6 +2,7 @@ import os
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from datetime import datetime, timedelta
+import random
 
 # --- Configuración de Conexión ---
 # Idealmente, esto debería venir de un archivo .env
@@ -57,6 +58,12 @@ def seed_database():
                     "monto": monto
                 })
                 id_counter += 1
+        # Si alguna venta no tiene fecha, asignar una fecha random de 2025 hasta agosto
+        for venta in ventas:
+            if not venta.get('fecha'):
+                mes = random.randint(1, 8)
+                dia = random.randint(1, 28)
+                venta['fecha'] = f"2025-{mes:02d}-{dia:02d}"
         ventas_collection.insert_many(ventas)
     # 3. Insertar Reglas de Comisión si está vacío
     if reglas_collection.count_documents({}) == 0:

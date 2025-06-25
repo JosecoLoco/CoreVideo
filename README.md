@@ -1,4 +1,4 @@
-# 🏆 Sistema de Comisiones de Vendedores
+# Sistema de Comisiones de Vendedores
 
 Sistema completo para calcular comisiones de vendedores por rango de fechas, desarrollado con **Flask** (backend) y **React** (frontend).
 

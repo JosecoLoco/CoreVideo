@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import random
 
 # --- Configuración de Conexión ---
-# Idealmente, esto debería venir de un archivo .env
+# Aquí se configura la conexión a MongoDB. Normalmente esto iría en un .env, pero para pruebas lo dejamos así.
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "sistema_ventas")
 
@@ -13,6 +13,7 @@ client = MongoClient(MONGO_URI)
 db = client[MONGO_DB_NAME]
 
 # --- Colecciones ---
+# Estas son como las "tablas" en MongoDB
 vendedores_collection = db["vendedores"]
 ventas_collection = db["ventas"]
 reglas_collection = db["reglas"]
@@ -21,7 +22,7 @@ historial_collection = db["historial"]
 def seed_database():
     """
     Solo inserta los datos de ejemplo si las colecciones están vacías.
-    No borra datos existentes.
+    Así evitamos duplicar datos cada vez que reiniciamos el backend.
     """
     print("--- VERIFICANDO SI ES NECESARIO PLANTAR DATOS DE EJEMPLO ---")
     # 1. Insertar datos de Vendedores si está vacío

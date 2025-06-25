@@ -20,18 +20,20 @@ with app.app_context():
 
 @app.route('/')
 def home():
+    # Endpoint de prueba para saber si el backend está vivo
     return jsonify({"message": "Sistema de Comisiones - API con MongoDB funcionando!"})
 
 @app.route('/api/vendedores')
 def get_vendedores():
+    # Devuelve la lista de vendedores
     vendedores = list(vendedores_collection.find())
     return jsonify(object_id_to_str(vendedores))
 
 @app.route('/api/ventas')
 def get_ventas():
+    # Devuelve la lista de ventas, agregando el nombre del vendedor a cada una
     ventas = list(ventas_collection.find())
     vendedores = {v['id']: v for v in object_id_to_str(list(vendedores_collection.find()))}
-    # Añadir nombre del vendedor a cada venta
     for venta in ventas:
         vendedor_id = venta['vendedor_id']
         venta['vendedor_nombre'] = vendedores.get(vendedor_id, {}).get('nombre', 'Desconocido')
@@ -39,6 +41,7 @@ def get_ventas():
 
 @app.route('/api/reglas')
 def get_reglas():
+    # Devuelve las reglas de comisión
     reglas = list(reglas_collection.find())
     return jsonify(object_id_to_str(reglas))
 
@@ -47,8 +50,7 @@ def get_historial_comisiones():
     """Obtiene el historial de comisiones con filtros opcionales desde MongoDB."""
     try:
         query = {}
-        
-        # Filtro por rango de fecha de cálculo
+        # Filtros opcionales por fecha y vendedor
         fecha_inicio = request.args.get('fecha_inicio')
         fecha_fin = request.args.get('fecha_fin')
         if fecha_inicio and fecha_fin:
@@ -57,31 +59,26 @@ def get_historial_comisiones():
             query['fecha_calculo'] = {'$gte': fecha_inicio}
         elif fecha_fin:
             query['fecha_calculo'] = {'$lte': fecha_fin}
-            
-        # Filtro por vendedor
         vendedor_id = request.args.get('vendedor_id')
         if vendedor_id:
             query['vendedor_id'] = int(vendedor_id)
-            
         historial_filtrado = list(historial_collection.find(query))
-        
-        # Agregar información del vendedor a cada registro
+        # Agregar nombre del vendedor a cada registro
         vendedores = {v['id']: v for v in object_id_to_str(list(vendedores_collection.find()))}
         for registro in historial_filtrado:
             vendedor = vendedores.get(registro['vendedor_id'])
             registro['vendedor_nombre'] = vendedor['nombre'] if vendedor else 'Desconocido'
-        
         return jsonify({
             "historial": object_id_to_str(historial_filtrado),
             "total_registros": len(historial_filtrado),
             "total_comisiones": round(sum(r['comision_calculada'] for r in historial_filtrado), 2)
         })
-        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/calcular-comisiones', methods=['POST'])
 def calcular_comisiones():
+    # Calcula las comisiones de todos los vendedores en el rango de fechas
     try:
         data = request.get_json()
         fecha_inicio = data.get('fecha_inicio')
@@ -154,14 +151,12 @@ def calcular_comisiones():
 
 @app.route('/api/agregar-venta', methods=['POST'])
 def agregar_venta():
-    """Agrega una nueva venta a la colección de MongoDB."""
+    # Agrega una nueva venta a la colección de MongoDB
     try:
         data = request.get_json()
-        
         # Encontrar el ID más alto y sumar 1 para simular autoincremento
         last_venta = ventas_collection.find_one(sort=[("_id", -1)])
         next_id = (last_venta['_id'] + 1) if last_venta else 1
-        
         nueva_venta = {
             "_id": next_id,
             "vendedor_id": int(data['vendedor_id']),
@@ -173,40 +168,9 @@ def agregar_venta():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/resumen-comisiones')
-def resumen_comisiones():
-    try:
-        fecha_inicio = request.args.get('fecha_inicio')
-        fecha_fin = request.args.get('fecha_fin')
-        if not fecha_inicio or not fecha_fin:
-            return jsonify({"error": "Fechas de inicio y fin son requeridas"}), 400
-        # Buscar todos los registros del historial cuyo periodo se cruce con el rango seleccionado
-        query = {
-            'fecha_inicio': {'$lte': fecha_fin},
-            'fecha_fin': {'$gte': fecha_inicio}
-        }
-        historial = list(historial_collection.find(query))
-        resumen = {}
-        for registro in historial:
-            vid = registro['vendedor_id']
-            if vid not in resumen:
-                resumen[vid] = {
-                    'vendedor_id': vid,
-                    'comision_total': 0.0
-                }
-            resumen[vid]['comision_total'] += registro.get('comision_calculada', 0)
-        vendedores = {v['id']: v for v in object_id_to_str(list(vendedores_collection.find()))}
-        resultado = []
-        for vid, data in resumen.items():
-            nombre = vendedores.get(vid, {}).get('nombre', 'Desconocido')
-            data['nombre'] = nombre
-            resultado.append(data)
-        return jsonify(sorted(resultado, key=lambda x: x['vendedor_id']))
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 @app.route('/api/ventas-filtradas', methods=['GET'])
 def ventas_filtradas():
+    # Devuelve las ventas filtradas por rango de fechas, con comisión calculada
     fecha_inicio = request.args.get('fecha_inicio')
     fecha_fin = request.args.get('fecha_fin')
     if not fecha_inicio or not fecha_fin:
@@ -243,4 +207,5 @@ def ventas_filtradas():
     return jsonify(resultado)
 
 if __name__ == '__main__':
+    # Esto es lo que ejecuta el servidor Flask
     app.run(debug=True, host='0.0.0.0', port=5000) 
